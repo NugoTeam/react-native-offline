@@ -3,30 +3,30 @@
 import {
   DEFAULT_HTTP_METHOD,
   DEFAULT_PING_SERVER_URL,
-  DEFAULT_TIMEOUT,
-} from './constants';
+  DEFAULT_TIMEOUT
+} from "./constants";
 
 type Options = {
-  method?: 'HEAD' | 'OPTIONS',
+  method?: "HEAD" | "OPTIONS",
   url: string,
   timeout?: number,
   testMethod?:
-    | 'onload/2xx'
-    | 'onload/3xx'
-    | 'onload/4xx'
-    | 'onload/5xx'
-    | 'onerror'
-    | 'ontimeout',
+    | "onload/2xx"
+    | "onload/3xx"
+    | "onload/4xx"
+    | "onload/5xx"
+    | "onerror"
+    | "ontimeout"
 };
 
 type ResolvedValue = {
-  status: number,
+  status: number
 };
 
 export const headers = {
-  'Cache-Control': 'no-cache, no-store, must-revalidate',
-  Pragma: 'no-cache',
-  Expires: 0,
+  "Cache-Control": "no-cache, no-store, must-revalidate",
+  Pragma: "no-cache",
+  Expires: 0
 };
 
 /**
@@ -41,40 +41,54 @@ export default function makeHttpRequest({
   method = DEFAULT_HTTP_METHOD,
   url = DEFAULT_PING_SERVER_URL,
   timeout = DEFAULT_TIMEOUT,
-  testMethod,
+  testMethod
 }: Options = {}) {
   return new Promise(
     (resolve: ResolvedValue => void, reject: ResolvedValue => void) => {
+      let status = 0;
+
+      const rej = () => {
+        if (status === 0) {
+          reject({
+            status: 408
+          });
+        }
+      };
+
       // $FlowFixMe
       const xhr = new XMLHttpRequest(testMethod);
       xhr.open(method, url);
       xhr.timeout = timeout;
       xhr.onload = function onLoad() {
+        status = this.status;
         // 3xx is a valid response for us, since the server was reachable
         if (this.status >= 200 && this.status < 400) {
           resolve({
-            status: this.status,
+            status: this.status
           });
         } else {
           reject({
-            status: this.status,
+            status: this.status
           });
         }
       };
       xhr.onerror = function onError() {
+        status = this.status;
         reject({
-          status: this.status,
+          status: this.status
         });
       };
       xhr.ontimeout = function onTimeOut() {
+        status = this.status;
         reject({
-          status: this.status,
+          status: this.status
         });
       };
       Object.keys(headers).forEach((key: string) => {
         xhr.setRequestHeader(key, headers[key]);
       });
       xhr.send(null);
-    },
+      setTimeout(rej, timeout);
+    }
   );
 }
